@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+@theme {
+  --color-void: #07070B;
+  --color-canvas: #0B0B11;
+  --color-surface-DEFAULT: #111118;
+  --color-surface-raised: #16161F;
+  --color-surface-inset: #0E0E14;
+  
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-default: rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  
+  --color-fg-primary: #F5F5F7;
+  --color-fg-secondary: #8A8A94;
+  --color-fg-tertiary: #52525B;
+  
+  --color-accent-glow: #6366F1;
+  
+  --font-display: "Satoshi", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+}
+
+:root {
+  /* Canvas & Surfaces */
+  --bg-void:            #07070B;   /* Outermost page background */
+  --bg-canvas:          #0B0B11;   /* Main app background */
+  --bg-surface:         #111118;   /* Default card background */
+  --bg-surface-raised:  #16161F;   /* Hover state, active nav item, modals */
+  --bg-surface-inset:   #0E0E14;   /* Input fields, inset wells */
+
+  /* Borders */
+  --border-subtle:      rgba(255, 255, 255, 0.06);   /* Default card borders */
+  --border-default:     rgba(255, 255, 255, 0.10);   /* Stronger dividers */
+  --border-strong:      rgba(255, 255, 255, 0.16);   /* Focus rings, active states */
+
+  /* Text */
+  --text-primary:       #F5F5F7;   /* Headings, main content */
+  --text-secondary:     #8A8A94;   /* Labels, secondary info */
+  --text-tertiary:      #52525B;   /* Placeholder, disabled, captions */
+  --text-inverse:       #0B0B11;   /* For buttons on light bg (rare) */
+
+  /* Accent — the cosmic glow */
+  --accent-glow:        #6366F1;   /* Indigo — used for top radial gradient and focus */
+  --accent-glow-soft:   rgba(99, 102, 241, 0.15);
+
+  /* Semantic — Present / Success */
+  --success-fg:         #10B981;
+  --success-bg:         rgba(16, 185, 129, 0.12);
+  --success-border:     rgba(16, 185, 129, 0.25);
+
+  /* Semantic — Absent / Danger */
+  --danger-fg:          #F43F5E;
+  --danger-bg:          rgba(244, 63, 94, 0.12);
+  --danger-border:      rgba(244, 63, 94, 0.25);
+
+  /* Semantic — Warning */
+  --warning-fg:         #F59E0B;
+  --warning-bg:         rgba(245, 158, 11, 0.12);
+  --warning-border:     rgba(245, 158, 11, 0.25);
+
+  /* Semantic — Info / Neutral highlight */
+  --info-fg:            #3B82F6;
+  --info-bg:            rgba(59, 130, 246, 0.12);
+  --info-border:        rgba(59, 130, 246, 0.25);
+  
+  /* Fonts */
+  --font-display: 'Satoshi', 'Inter', system-ui, sans-serif;   /* Headings, hero numbers */
+  --font-body:    'Inter', system-ui, sans-serif;              /* Everything else */
+  --font-mono:    'JetBrains Mono', 'SF Mono', monospace;      /* USNs, tabular numbers, code */
+
+  /* Spacing */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
+
+  /* Border radius */
+  --radius-sm:    6px;      /* Badges, small pills */
+  --radius-md:    10px;     /* Buttons, inputs */
+  --radius-lg:    14px;     /* Nav items, small cards */
+  --radius-xl:    18px;     /* Default cards */
+  --radius-2xl:   24px;     /* Hero cards */
+  --radius-full:  9999px;   /* Status pills, avatars */
+
+  /* Shadows, Glows & Effects */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-subtle);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-default);
+  --shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.25);
+
+  --glow-cosmic: radial-gradient(
+    ellipse 600px 300px at 50% -100px,
+    rgba(99, 102, 241, 0.18),
+    rgba(99, 102, 241, 0) 70%
+  );
+
+  --card-gradient: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+}
+
+body {
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-main {
+  background-image: var(--glow-cosmic);
+  min-height: 100vh;
+}
+
+/* Card classes */
+.card {
+  background: var(--bg-surface);
+  background-image: var(--card-gradient);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+}
+
+.glass-card {
+  background: rgba(17, 17, 24, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.focus-glow:focus-within {
+  box-shadow: 0 0 0 2px var(--bg-void), 0 0 0 4px var(--accent-glow-soft);
+  border-color: var(--accent-glow);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Base button and input styling to ensure visual structure */
+.btn-primary {
+  background: var(--text-primary);
+  color: var(--text-inverse);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  font: 500 14px var(--font-body);
+  letter-spacing: -0.005em;
+  transition: 0.2s all;
+}
+.btn-primary:hover { background: #E5E5E7; }
+
+.btn-secondary {
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  transition: 0.2s all;
+}
+.btn-secondary:hover { background: var(--bg-surface); }
+
+/* Typography Utilities */
+.text-h1 { font-size: 2.5rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; }
+.text-h2 { font-size: 1.875rem; font-weight: 600; line-height: 1.3; }
+.text-h3 { font-size: 1.25rem; font-weight: 600; line-height: 1.4; }
+.text-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.text-body { font-size: 0.9375rem; line-height: 1.5; }
+.text-body-sm { font-size: 0.875rem; line-height: 1.5; }
+.text-caption { font-size: 0.8125rem; line-height: 1.4; }
+.text-micro { font-size: 0.75rem; font-weight: 500; }
+.text-display-hero { font-size: 3.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.03em; }
+.text-display-md { font-size: 2.25rem; font-weight: 700; line-height: 1.2; }
+.text-display-sm { font-size: 1.5rem; font-weight: 600; line-height: 1.3; }
