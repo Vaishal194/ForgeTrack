@@ -15,9 +15,9 @@ const supabaseAnonKey = anonKeyMatch[1].trim();
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function createMentor() {
-    console.log("Signing up vaishalnv@gmail.com...");
+    console.log("Signing up vaishalnvpc@gmail.com...");
     const { data, error } = await supabase.auth.signUp({
-        email: 'vaishalnv@gmail.com',
+        email: 'vaishalnvpc@gmail.com',
         password: 'password123',
         options: {
             data: {

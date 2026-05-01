@@ -15,8 +15,8 @@ async function main() {
                 new_user_id UUID := gen_random_uuid();
             BEGIN
                 -- 1. Check if user exists already and delete them to avoid issues
-                DELETE FROM auth.users WHERE email = 'vaishalnv@gmail.com';
-                DELETE FROM public.users WHERE email = 'vaishalnv@gmail.com';
+                DELETE FROM auth.users WHERE email = 'vaishalnvpc@gmail.com';
+                DELETE FROM public.users WHERE email = 'vaishalnvpc@gmail.com';
                 
                 -- 2. Insert into auth.users
                 INSERT INTO auth.users (
@@ -39,7 +39,7 @@ async function main() {
                 ) VALUES (
                     new_user_id,
                     '00000000-0000-0000-0000-000000000000',
-                    'vaishalnv@gmail.com',
+                    'vaishalnvpc@gmail.com',
                     crypt('password123', gen_salt('bf')),
                     NOW(),
                     '{"provider": "email", "providers": ["email"]}',
@@ -63,7 +63,7 @@ async function main() {
                     display_name
                 ) VALUES (
                     new_user_id,
-                    'vaishalnv@gmail.com',
+                    'vaishalnvpc@gmail.com',
                     'mentor',
                     'Vaishal'
                 );

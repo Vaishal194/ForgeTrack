@@ -32,8 +32,8 @@ async function main() {
                 new_user_id UUID := gen_random_uuid();
             BEGIN
                 -- Clean up existing
-                DELETE FROM auth.users WHERE email = 'vaishalnv@gmail.com';
-                DELETE FROM public.users WHERE email = 'vaishalnv@gmail.com';
+                DELETE FROM auth.users WHERE email = 'vaishalnvpc@gmail.com';
+                DELETE FROM public.users WHERE email = 'vaishalnvpc@gmail.com';
                 
                 -- Insert into auth.users
                 INSERT INTO auth.users (
@@ -50,7 +50,7 @@ async function main() {
                     instance_id
                 ) VALUES (
                     new_user_id,
-                    'vaishalnv@gmail.com',
+                    'vaishalnvpc@gmail.com',
                     crypt('password123', gen_salt('bf')),
                     NOW(),
                     '{"provider": "email", "providers": ["email"]}',
@@ -64,7 +64,7 @@ async function main() {
 
                 -- Link in public.users
                 INSERT INTO public.users (id, email, role, display_name)
-                VALUES (new_user_id, 'vaishalnv@gmail.com', 'mentor', 'Vaishal');
+                VALUES (new_user_id, 'vaishalnvpc@gmail.com', 'mentor', 'Vaishal');
             END $$;
         `;
         await client.query(mentorSql);
