@@ -15,9 +15,9 @@ const supabaseAnonKey = anonKeyMatch[1].trim();
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function testLogin() {
-    console.log("Testing login for akhilesh@gmail.com...");
+    console.log("Testing login for vaishalnv@gmail.com...");
     const { data, error } = await supabase.auth.signInWithPassword({
-        email: 'akhilesh@gmail.com',
+        email: 'vaishalnv@gmail.com',
         password: 'password123'
     });
 

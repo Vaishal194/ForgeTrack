@@ -15,8 +15,8 @@ async function main() {
                 new_user_id UUID := gen_random_uuid();
             BEGIN
                 -- 1. Check if user exists already and delete them to avoid issues
-                DELETE FROM auth.users WHERE email = 'akhilesh@gmail.com';
-                DELETE FROM public.users WHERE email = 'akhilesh@gmail.com';
+                DELETE FROM auth.users WHERE email = 'vaishalnv@gmail.com';
+                DELETE FROM public.users WHERE email = 'vaishalnv@gmail.com';
                 
                 -- 2. Insert into auth.users
                 INSERT INTO auth.users (
@@ -39,11 +39,11 @@ async function main() {
                 ) VALUES (
                     new_user_id,
                     '00000000-0000-0000-0000-000000000000',
-                    'akhilesh@gmail.com',
+                    'vaishalnv@gmail.com',
                     crypt('password123', gen_salt('bf')),
                     NOW(),
                     '{"provider": "email", "providers": ["email"]}',
-                    '{"full_name": "Akhilesh", "role": "mentor"}',
+                    '{"full_name": "Vaishal", "role": "mentor"}',
                     NOW(),
                     NOW(),
                     'authenticated',
@@ -63,16 +63,16 @@ async function main() {
                     display_name
                 ) VALUES (
                     new_user_id,
-                    'akhilesh@gmail.com',
+                    'vaishalnv@gmail.com',
                     'mentor',
-                    'Akhilesh'
+                    'Vaishal'
                 );
             END $$;
         `;
         
-        console.log("Applying direct auth insert for Akhilesh...");
+        console.log("Applying direct auth insert for Vaishal...");
         await client.query(sql);
-        console.log("Successfully inserted mentor Akhilesh.");
+        console.log("Successfully inserted mentor Vaishal.");
     } catch (e) {
         console.error("Error applying SQL:", e);
     } finally {
