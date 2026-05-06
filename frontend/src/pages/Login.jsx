@@ -30,14 +30,19 @@ export default function Login() {
   };
 
   const redirectByRole = async (user) => {
+    // Fetch role from public.users table
     const { data, error } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle to avoid error if row doesn't exist yet
 
-    // Fallback: if users lookup fails (e.g., RLS/policy issue), infer from auth data.
-    const role = (data?.role === 'mentor' || data?.role === 'student') ? data.role : inferRoleFromUser(user);
+    if (error) {
+      console.error("Error fetching user role:", error.message);
+    }
+
+    // Determine role: Table value > Metadata > Inference
+    const role = data?.role || user?.user_metadata?.role || inferRoleFromUser(user);
 
     if (role === 'mentor') {
       navigate('/dashboard', { replace: true });
@@ -93,9 +98,13 @@ export default function Login() {
 
       await redirectByRole(data.user);
     } catch (err) {
+      console.error("Auth error detail:", err);
       const msg = err?.message || "Invalid credentials provided";
-      if (msg.toLowerCase().includes('database error querying schema')) {
-        setErrorStatus('Supabase schema/policy issue detected. Apply updated SQL policies in backend/supabase/schema.sql, then try again.');
+      
+      // Handle the specific generic error that often indicates a backend trigger/policy failure
+      if (msg.toLowerCase().includes('database error querying schema') || 
+          msg.toLowerCase().includes('database error')) {
+        setErrorStatus('A database policy or trigger issue occurred. Please ensure SQL in schema.sql is applied correctly.');
       } else {
         setErrorStatus(msg);
       }
