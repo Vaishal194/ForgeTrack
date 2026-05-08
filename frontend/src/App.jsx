@@ -11,9 +11,9 @@ import Dashboard from './pages/mentor/Dashboard';
 import MarkAttendance from './pages/mentor/MarkAttendance';
 import StudentHistory from './pages/mentor/StudentHistory';
 import Materials from './pages/mentor/Materials';
+import UploadCSV from './pages/mentor/UploadCSV';
 
 import {
-  UploadCSV,
   MyAttendance,
   Upcoming,
   StudentMaterials
@@ -30,13 +30,23 @@ function RootRedirect() {
   };
 
   useEffect(() => {
+    let mounted = true;
+    const timeout = setTimeout(() => {
+      if (mounted && !target) {
+        console.warn("Auth mapping taking too long, falling back to login");
+        setTarget('/login');
+      }
+    }, 5000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
       if (!session) {
         setTarget('/login');
         return;
       }
       supabase.from('users').select('role').eq('id', session.user.id).single()
         .then(({ data, error }) => {
+          if (!mounted) return;
           const role = (!error && (data?.role === 'mentor' || data?.role === 'student'))
             ? data.role
             : inferRoleFromUser(session.user);
@@ -45,15 +55,27 @@ function RootRedirect() {
           else setTarget('/403');
         })
         .catch(() => {
+          if (!mounted) return;
           const role = inferRoleFromUser(session.user);
           if (role === 'mentor') setTarget('/dashboard');
           else if (role === 'student') setTarget('/me/attendance');
           else setTarget('/403');
         });
     });
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+    };
   }, []);
 
-  if (!target) return <div className="app-main h-screen" />; // empty placeholder while mapping
+  if (!target) {
+    return (
+      <div className="flex w-full h-screen items-center justify-center app-main">
+        <p className="text-fg-secondary font-body">Loading ForgeTrack...</p>
+      </div>
+    );
+  }
   return <Navigate to={target} replace />;
 }
 

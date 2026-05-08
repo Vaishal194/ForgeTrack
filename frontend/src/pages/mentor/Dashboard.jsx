@@ -247,7 +247,7 @@ export default function Dashboard() {
     supabase.auth.getSession().then(({ data: { session } }) => {
        if (session) {
          supabase.from('users').select('display_name').eq('id', session.user.id).single()
-           .then(({ data }) => { if (data) setUserName(data.display_name.split(' ')[0]); });
+           .then(({ data }) => { if (data?.display_name) setUserName(data.display_name.split(' ')[0]); });
        }
     });
 
