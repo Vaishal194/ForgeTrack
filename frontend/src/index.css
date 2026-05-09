@@ -127,6 +127,15 @@ body {
   min-height: 100vh;
 }
 
+/* Scrollbar Utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 /* Card classes */
 .card {
   background: var(--bg-surface);

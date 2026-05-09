@@ -1,191 +1,250 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Search } from 'lucide-react';
+import { Search, Users, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import Heatmap from '../../components/ui/Heatmap';
 
 export default function StudentHistory() {
+  const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeStudent, setActiveStudent] = useState(null);
-  
-  // Analytics blocks
-  const [history, setHistory] = useState([]); // Raw attendance join sessions array
-  const [stats, setStats] = useState({ pct: 0, attended: 0, total: 0, streak: 0, maxStreak: 0 });
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterPct, setFilterPct] = useState('');
+  const [filterBranch, setFilterBranch] = useState('');
+
+  const threshold = 75;
 
   useEffect(() => {
-    // Load student directory
-    supabase.from('students').select('id, name, usn, branch_code, batch').order('name')
-       .then(({data}) => {
-          if (data) setStudents(data);
-       });
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [stuRes, sessRes, attRes] = await Promise.all([
+          supabase.from('students').select('*').order('name'),
+          supabase.from('sessions').select('*').order('date', { ascending: false }),
+          supabase.from('attendance').select('student_id, session_id, present')
+        ]);
+        
+        if (stuRes.data) setStudents(stuRes.data);
+        if (sessRes.data) setSessions(sessRes.data);
+        if (attRes.data) setAttendance(attRes.data);
+      } catch (e) {
+        console.error(e);
+      }
+      setLoading(false);
+    }
+    loadData();
   }, []);
 
-  const loadHistory = (studentId) => {
-    supabase.from('attendance')
-       .select('present, sessions(date, topic, duration_hours, session_type)')
-       .eq('student_id', studentId)
-       .order('sessions(date)', { ascending: false })
-       .then(({ data }) => {
-          if (!data) return;
-          setHistory(data);
+  const studentStats = useMemo(() => {
+    if (!students.length) return [];
+    
+    let activeSessions = sessions;
+    if (filterMonth) {
+      activeSessions = sessions.filter(s => {
+        const hMonth = new Date(s.date).getMonth() + 1;
+        return hMonth.toString() === filterMonth;
+      });
+    }
 
-          // Calculate stats
-          const total = data.length;
-          const attended = data.filter(r => r.present).length;
-          const pct = Math.round((attended / (total || 1)) * 100);
+    const sessionIds = new Set(activeSessions.map(s => s.id));
 
-          // Streaks - array is ordered descending by date because of 'order()' usually, 
-          // but we must be careful. Let's explicitly sort by date to be safe.
-          const sorted = [...data].sort((a,b) => new Date(b.sessions.date) - new Date(a.sessions.date));
-          
-          let curStreak = 0;
-          for(let i=0; i<sorted.length; i++) {
-             if (sorted[i].present) curStreak++; else break;
-          }
+    return students.map(student => {
+      const stuAtt = attendance.filter(a => a.student_id === student.id && sessionIds.has(a.session_id));
+      
+      const total = activeSessions.length;
+      const presentCount = stuAtt.filter(a => a.present).length;
+      const absentCount = stuAtt.filter(a => !a.present).length;
+      const pct = total === 0 ? 0 : Math.round((presentCount / total) * 100);
 
-          let maxStreak = 0, temp = 0;
-          for(let i=0; i<sorted.length; i++) {
-             if (sorted[i].present) { temp++; maxStreak = Math.max(maxStreak, temp); }
-             else { temp = 0; }
-          }
+      const heatmapData = activeSessions.map(s => {
+        const record = stuAtt.find(a => a.session_id === s.id);
+        return {
+          id: s.id,
+          date: s.date,
+          topic: s.topic,
+          status: record ? (record.present ? 'present' : 'absent') : 'unmarked'
+        };
+      });
 
-          setStats({ pct, attended, total, streak: curStreak, maxStreak });
-       });
-  };
+      return {
+        ...student,
+        total,
+        presentCount,
+        absentCount,
+        pct,
+        heatmapData
+      };
+    });
+  }, [students, sessions, attendance, filterMonth]);
 
-  const selectStudent = (student) => {
-    setActiveStudent(student);
-    setSearchTerm('');
-    loadHistory(student.id);
-  };
+  const displayedStudents = useMemo(() => {
+    return studentStats.filter(s => {
+      let match = true;
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        if (!s.name.toLowerCase().includes(term) && !s.usn.toLowerCase().includes(term)) {
+          match = false;
+        }
+      }
+      if (filterBranch && s.branch_code !== filterBranch) match = false;
+      if (filterPct) {
+        if (filterPct === 'low' && s.pct >= threshold) match = false;
+        if (filterPct === 'mid' && (s.pct < threshold || s.pct > 90)) match = false;
+        if (filterPct === 'high' && s.pct <= 90) match = false;
+      }
+      return match;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [studentStats, searchTerm, filterBranch, filterPct]);
 
-  const filteredList = students.filter(s => 
-     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     s.usn.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const globalStats = useMemo(() => {
+    const totalDisplayed = displayedStudents.length;
+    if (!totalDisplayed) return { avg: 0, belowThreshold: 0, top: null, bottom: null };
+    
+    const sumPct = displayedStudents.reduce((acc, s) => acc + s.pct, 0);
+    const avg = Math.round(sumPct / totalDisplayed);
+    const belowThreshold = displayedStudents.filter(s => s.pct < threshold).length;
+    
+    const sortedByPct = [...displayedStudents].sort((a, b) => b.pct - a.pct);
+    const top = sortedByPct[0];
+    const bottom = sortedByPct[sortedByPct.length - 1];
+
+    return { avg, belowThreshold, top, bottom };
+  }, [displayedStudents]);
+
+  const uniqueBranches = useMemo(() => [...new Set(students.map(s => s.branch_code).filter(Boolean))], [students]);
+
+  if (loading) {
+     return <div className="p-8 text-center animate-pulse text-fg-tertiary">Loading Analytics Dashboard...</div>;
+  }
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl w-full mx-auto animate-in fade-in">
-       <h1 className="text-h1 font-display mb-2">Student History Mapping</h1>
-
-       {/* Search Combobox Mock */}
-       <div className="relative z-30">
-         <div className="relative">
-           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-fg-tertiary" />
-           <input 
-              type="text" 
-              placeholder="Search by Name or USN..." 
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="input w-full pl-11 bg-surface-inset shadow-card focus:shadow-focus transition-all"
-           />
-         </div>
-         {searchTerm.length > 0 && (
-           <div className="absolute top-14 left-0 w-full bg-surface-raised border border-border-default rounded-xl shadow-raised overflow-hidden">
-             {filteredList.slice(0, 5).map(s => (
-               <button key={s.id} onClick={() => selectStudent(s)} className="w-full text-left px-6 py-3 hover:bg-surface border-b border-border-subtle last:border-0 flex justify-between items-center transition-colors">
-                  <span className="text-fg-primary text-body">{s.name}</span>
-                  <span className="text-fg-tertiary text-caption font-mono">{s.usn}</span>
-               </button>
-             ))}
-             {filteredList.length === 0 && <p className="px-6 py-4 text-caption text-fg-tertiary">No student matching term.</p>}
-           </div>
-         )}
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-24 animate-in fade-in min-w-0 overflow-hidden">
+       <div>
+         <h1 className="text-display-md font-display tracking-tight text-fg-primary mb-2">Attendance Analytics</h1>
+         <p className="text-body text-fg-secondary">Global overview of student engagement and historical data.</p>
        </div>
 
-       {!activeStudent ? (
-          <div className="card min-h-[400px] flex items-center justify-center flex-col mt-4 border-dashed bg-transparent shadow-none">
-             <Users size={48} className="text-fg-tertiary opacity-30 mb-4" />
-             <p className="text-body text-fg-secondary">Search and select a student above to view their attendance profile.</p>
-          </div>
-       ) : (
-          <div className="flex flex-col animate-in slide-in-from-bottom-2 fade-in">
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                {/* Profile Card */}
-                <div className="card col-span-1 flex flex-col justify-between">
-                   <div>
-                      <p className="text-label text-fg-tertiary mb-2">STUDENT PROFILE</p>
-                      <h2 className="text-display-sm text-fg-primary leading-none mb-4">{activeStudent.name}</h2>
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        <span className="px-3 py-1 bg-surface-inset border border-border-default rounded-md text-caption font-mono text-fg-secondary">{activeStudent.usn}</span>
-                        <span className="px-3 py-1 bg-surface-inset border border-border-default rounded-md text-caption text-fg-secondary">{activeStudent.branch_code}</span>
-                      </div>
-                   </div>
-                   <div className="border-t border-border-subtle pt-6 flex items-end justify-between">
-                      <div>
-                        <p className="text-caption text-fg-tertiary mb-1">Overall Attendance</p>
-                        <p className={`text-display-md tabular-nums leading-none ${stats.pct > 75 ? 'text-success' : stats.pct > 60 ? 'text-warning' : 'text-danger'}`}>
-                           {stats.pct}%
-                        </p>
-                      </div>
-                      <div className="text-right text-caption text-fg-secondary">
-                        <p>{stats.attended} of {stats.total}</p>
-                        <p>Sessions</p>
-                      </div>
-                   </div>
-                </div>
-
-                {/* Heatmap Grid Mock */}
-                <div className="card col-span-1 lg:col-span-2">
-                   <p className="text-label text-fg-tertiary mb-4">ATTENDANCE HEATMAP (LATEST 30 SESSIONS)</p>
-                   <div className="flex flex-wrap gap-2 content-start">
-                     {/* We map the history into blocks, max 35 blocks */}
-                     {Array.from({length: 35}).map((_, idx) => {
-                        const rec = history[idx];
-                        if (!rec) return <div key={idx} className="w-8 h-8 rounded-md bg-surface-inset opacity-50" title="No Session" />;
-                        return (
-                           <div key={idx} 
-                                title={`${rec.sessions.date}: ${rec.present ? 'Present' : 'Absent'}`}
-                                className={`w-8 h-8 rounded-md ${rec.present ? 'bg-success-bg border border-success-border' : 'bg-danger-bg border border-danger-border'} transition-all hover:scale-110 cursor-help`} 
-                           />
-                        );
-                     })}
-                   </div>
-                   <div className="mt-8 pt-6 border-t border-border-subtle grid grid-cols-3 gap-4">
-                      <div>
-                         <p className="text-caption text-fg-tertiary">Current Streak</p>
-                         <p className="text-h2 text-fg-primary tabular-nums">{stats.streak} <span className="text-body text-fg-secondary">days</span></p>
-                      </div>
-                      <div>
-                         <p className="text-caption text-fg-tertiary">Longest Streak</p>
-                         <p className="text-h2 text-fg-primary tabular-nums">{stats.maxStreak} <span className="text-body text-fg-secondary">days</span></p>
-                      </div>
-                   </div>
-                </div>
+       {/* Top Analytics Cards */}
+       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="card bg-surface flex flex-col justify-between">
+             <div className="flex items-center gap-3 text-fg-tertiary mb-4">
+                <Users size={18} />
+                <span className="text-label">TOTAL STUDENTS</span>
              </div>
-
-             {/* Table Listing */}
-             <div className="card overflow-x-auto p-0 border border-border-subtle">
-                <table className="table">
-                   <thead>
-                      <tr>
-                        <th className="w-32">Date ⇅</th>
-                        <th>Topic</th>
-                        <th className="w-32">Status</th>
-                        <th className="w-24 text-right">Hours</th>
-                      </tr>
-                   </thead>
-                   <tbody>
-                      {history.map((h, i) => (
-                        <tr key={i}>
-                           <td className="font-mono text-fg-secondary">{h.sessions.date}</td>
-                           <td className="font-medium">{h.sessions.topic} <span className="text-caption text-fg-tertiary ml-2 italic">{h.sessions.session_type}</span></td>
-                           <td>
-                              <span className={`pill ${h.present ? 'pill-success' : 'pill-danger'}`}>{h.present ? 'Present' : 'Absent'}</span>
-                           </td>
-                           <td className="text-right text-fg-secondary">{h.sessions.duration_hours}h</td>
-                        </tr>
-                      ))}
-                      {history.length === 0 && (
-                         <tr><td colSpan="4" className="text-center py-8 text-fg-tertiary">No records exist for this student.</td></tr>
-                      )}
-                   </tbody>
-                </table>
+             <p className="text-display-lg tabular-nums text-fg-primary leading-none">{displayedStudents.length}</p>
+          </div>
+          <div className="card bg-surface flex flex-col justify-between">
+             <div className="flex items-center gap-3 text-fg-tertiary mb-4">
+                <TrendingUp size={18} />
+                <span className="text-label">AVERAGE ATTENDANCE</span>
+             </div>
+             <p className={`text-display-lg tabular-nums leading-none ${globalStats.avg >= threshold ? 'text-success' : 'text-danger'}`}>
+                {globalStats.avg}%
+             </p>
+          </div>
+          <div className="card bg-surface flex flex-col justify-between">
+             <div className="flex items-center gap-3 text-danger mb-4">
+                <AlertTriangle size={18} />
+                <span className="text-label">AT RISK (&lt;{threshold}%)</span>
+             </div>
+             <p className="text-display-lg tabular-nums text-danger leading-none">{globalStats.belowThreshold}</p>
+          </div>
+          <div className="card bg-surface flex flex-col justify-between text-body-sm text-fg-secondary min-w-0">
+             <div className="flex items-center gap-3 text-fg-tertiary mb-2">
+                <TrendingDown size={18} />
+                <span className="text-label">PERFORMANCE OUTLIERS</span>
+             </div>
+             <div className="flex justify-between items-center py-1 min-w-0">
+                <span className="truncate pr-2 flex-1">High: {globalStats.top?.name || '-'}</span>
+                <span className="text-success font-mono font-medium shrink-0">{globalStats.top?.pct || 0}%</span>
+             </div>
+             <div className="flex justify-between items-center py-1 border-t border-border-subtle min-w-0">
+                <span className="truncate pr-2 flex-1">Low: {globalStats.bottom?.name || '-'}</span>
+                <span className="text-danger font-mono font-medium shrink-0">{globalStats.bottom?.pct || 0}%</span>
              </div>
           </div>
-       )}
+       </div>
+
+       {/* Filters */}
+       <div className="flex flex-wrap items-center gap-4 bg-surface-inset p-4 rounded-xl border border-border-default">
+          <div className="relative flex-1 min-w-[250px]">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-fg-tertiary" />
+            <input 
+               type="text" 
+               placeholder="Search Name or USN..." 
+               value={searchTerm}
+               onChange={e => setSearchTerm(e.target.value)}
+               className="input w-full pl-10"
+            />
+          </div>
+          <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} className="input w-auto min-w-[140px]">
+             <option value="">All Months</option>
+             {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                <option key={m} value={m}>{new Date(2000, m-1, 1).toLocaleString('default', { month: 'short' })}</option>
+             ))}
+          </select>
+          <select value={filterPct} onChange={e=>setFilterPct(e.target.value)} className="input w-auto min-w-[140px]">
+             <option value="">All % Ranges</option>
+             <option value="high">&gt; 90% (Excellent)</option>
+             <option value="mid">75% - 90% (Good)</option>
+             <option value="low">&lt; 75% (At Risk)</option>
+          </select>
+          <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)} className="input w-auto min-w-[140px]">
+             <option value="">All Sections</option>
+             {uniqueBranches.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+       </div>
+
+       {/* Student Roster */}
+       <div className="card p-0 overflow-x-auto border-border-subtle border">
+          <table className="table whitespace-nowrap">
+             <thead>
+                <tr>
+                   <th className="w-[200px]">Student Details</th>
+                   <th className="w-24 text-center">Att %</th>
+                   <th>Attendance Timeline (Recent 35)</th>
+                   <th className="w-24 text-center">Present</th>
+                   <th className="w-24 text-center">Absent</th>
+                </tr>
+             </thead>
+             <tbody>
+                {displayedStudents.map((s) => (
+                   <tr key={s.id} className="hover:bg-surface-raised transition-colors group">
+                      <td>
+                         <div className="flex flex-col min-w-[150px]">
+                            <span className="text-body font-semibold text-fg-primary group-hover:text-accent-glow transition-colors truncate">{s.name}</span>
+                            <span className="text-caption font-mono text-fg-tertiary truncate">{s.usn}</span>
+                         </div>
+                      </td>
+                      <td className="text-center">
+                         <span className={`inline-block font-mono font-bold w-12 text-right ${s.pct >= threshold ? 'text-success' : 'text-danger'}`}>
+                            {s.pct}%
+                         </span>
+                      </td>
+                      <td className="w-full">
+                         <Heatmap sessions={s.heatmapData} maxBlocks={35} />
+                      </td>
+                      <td className="text-center">
+                         <span className="text-body-sm tabular-nums text-fg-secondary">{s.presentCount}</span>
+                      </td>
+                      <td className="text-center">
+                         <span className="text-body-sm tabular-nums text-fg-secondary">{s.absentCount}</span>
+                      </td>
+                   </tr>
+                ))}
+                {displayedStudents.length === 0 && (
+                   <tr>
+                      <td colSpan="5" className="text-center py-12 text-fg-tertiary">
+                         No students found matching your filters.
+                      </td>
+                   </tr>
+                )}
+             </tbody>
+          </table>
+       </div>
     </div>
   );
 }
-
-// Ensure lucide icon 'Users' mock works if needed above 
-import { Users } from 'lucide-react';
